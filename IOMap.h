@@ -16,6 +16,7 @@ extern bool adsOK[2];
 extern bool pcaOK;
 
 extern int joyNeutralMin, joyNeutralMax;
+extern int valveMin, valveMax;
 
 void ioInitI2CAndPCA();
 ADSRaw readADSRaw();

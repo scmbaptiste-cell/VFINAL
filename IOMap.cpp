@@ -3,6 +3,7 @@
 #include "Faults.h"
 #include "Calibration.h"
 #include "Bridage.h"
+#include "Inversion.h"
 #include <Wire.h>
 #include <EEPROM.h>
 
@@ -19,7 +20,7 @@ bool pcaOK=true;
 bool adsOK[2]={false,false};
 int neutralOffset=512;
 int joyNeutralMin=0, joyNeutralMax=0;
-static int mapMin=255, mapMax=768;
+int valveMin=255, valveMax=768;
 
 static const int NEUTRAL_HALF_WINDOW = 30;
 static int lastOffset = 512;
@@ -106,8 +107,8 @@ Axes8 mapADSAll(const ADSRaw& r){
 
   int *v = (int*)&a;
   for(int i=0;i<8;i++){
-    if(v[i] < mapMin) v[i] = mapMin;
-    if(v[i] > mapMax) v[i] = mapMax;
+    if(v[i] < valveMin) v[i] = valveMin;
+    if(v[i] > valveMax) v[i] = valveMax;
   }
   return a;
 }
@@ -151,10 +152,10 @@ void applyAxisToPair(uint8_t pwmCh, int val){
   bool active = false; // true when axis is outside neutral window
 
   if (val < joyNeutralMin){
-    duty = mapf((float)val, (float)mapMin, (float)joyNeutralMin, DUTY_MIN, DUTY_MID) + offsetDuty;
+    duty = mapf((float)val, (float)valveMin, (float)joyNeutralMin, DUTY_MIN, DUTY_MID) + offsetDuty;
     active = true;
   } else if (val > joyNeutralMax){
-    duty = mapf((float)val, (float)joyNeutralMax, (float)mapMax, DUTY_MID, DUTY_MAX) + offsetDuty;
+    duty = mapf((float)val, (float)joyNeutralMax, (float)valveMax, DUTY_MID, DUTY_MAX) + offsetDuty;
     active = true;
   }
 
@@ -212,12 +213,17 @@ void processADS(){
   }
 
   ADSRaw rr=readADSRaw(); Axes8 a=mapADSAll(rr);
-  // Inversion de l'axe Z en mode filaire
-  int invZ = neutralOffset * 2 - a.Z;
-  if(invZ < mapMin) invZ = mapMin; else if(invZ > mapMax) invZ = mapMax;
-  a.Z = invZ;
-  applyAxisToPair(0,a.X); applyAxisToPair(1,a.Y); applyAxisToPair(2,a.Z); applyAxisToPair(3,a.LX);
-  applyAxisToPair(4,a.LY); applyAxisToPair(5,a.LZ); applyAxisToPair(6,a.R1); applyAxisToPair(7,a.R2);
+  int vals[AX_COUNT] = {a.X,a.Y,a.Z,a.LX,a.LY,a.LZ,a.R1,a.R2};
+  for(int i=0;i<AX_COUNT;i++){
+    if(invertJoy[i]){
+      int inv = padMapMin[i] + padMapMax[i] - vals[i];
+      if(inv < padMapMin[i]) inv = padMapMin[i];
+      else if(inv > padMapMax[i]) inv = padMapMax[i];
+      vals[i] = inv;
+    }
+  }
+  applyAxisToPair(0,vals[0]); applyAxisToPair(1,vals[1]); applyAxisToPair(2,vals[2]); applyAxisToPair(3,vals[3]);
+  applyAxisToPair(4,vals[4]); applyAxisToPair(5,vals[5]); applyAxisToPair(6,vals[6]); applyAxisToPair(7,vals[7]);
 }
 
 void ioInitI2CAndPCA(){

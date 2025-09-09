@@ -3,6 +3,7 @@
 #include "Faults.h"
 #include "IOMap.h"
 #include "Calibration.h"
+#include "Inversion.h"
 
 ControllerPtr myControllers[BP32_MAX_GAMEPADS];
 uint32_t psHoldStartMs[BP32_MAX_GAMEPADS] = {0}, rlHoldStartMs[BP32_MAX_GAMEPADS] = {0};
@@ -187,6 +188,15 @@ void processControllers() {
   if (b & 0x0001) R1 = padMapMin[AX_R1]; else if (b & 0x0002) R1 = padMapMax[AX_R1];
   if (b & 0x0004) R2 = padMapMin[AX_R2]; else if (b & 0x0008) R2 = padMapMax[AX_R2];
 
+  if(invertPad[AX_X])  X  = padMapMin[AX_X]  + padMapMax[AX_X]  - X;
+  if(invertPad[AX_Y])  Y  = padMapMin[AX_Y]  + padMapMax[AX_Y]  - Y;
+  if(invertPad[AX_LX]) LX = padMapMin[AX_LX] + padMapMax[AX_LX] - LX;
+  if(invertPad[AX_LY]) LY = padMapMin[AX_LY] + padMapMax[AX_LY] - LY;
+  if(invertPad[AX_Z])  Z  = padMapMin[AX_Z]  + padMapMax[AX_Z]  - Z;
+  if(invertPad[AX_LZ]) LZ = padMapMin[AX_LZ] + padMapMax[AX_LZ] - LZ;
+  if(invertPad[AX_R1]) R1 = padMapMin[AX_R1] + padMapMax[AX_R1] - R1;
+  if(invertPad[AX_R2]) R2 = padMapMin[AX_R2] + padMapMax[AX_R2] - R2;
+
   if (pcaOK && safetyReady) {
     applyAxisToPair(0, X); applyAxisToPair(1, Y); applyAxisToPair(2, Z); applyAxisToPair(3, LX);
     applyAxisToPair(4, LY); applyAxisToPair(5, LZ); applyAxisToPair(6, R1); applyAxisToPair(7, R2);
@@ -216,6 +226,7 @@ bool getPadValues(int out[AX_COUNT], ControllerPtr ctl){
   out[AX_R1]=padNeutral[AX_R1]; out[AX_R2]=padNeutral[AX_R2]; uint16_t b=ctl->buttons();
   if(b&0x0001) out[AX_R1]=padMapMin[AX_R1]; else if(b&0x0002) out[AX_R1]=padMapMax[AX_R1];
   if(b&0x0004) out[AX_R2]=padMapMin[AX_R2]; else if(b&0x0008) out[AX_R2]=padMapMax[AX_R2];
+  for(int i=0;i<AX_COUNT;i++) if(invertPad[i]) out[i] = padMapMin[i] + padMapMax[i] - out[i];
   return true;
 }
 

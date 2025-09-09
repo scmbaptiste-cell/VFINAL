@@ -2,10 +2,12 @@
 #include <EEPROM.h>
 #include "Portal.h"
 #include "Bridage.h"
+#include "ValveCalib.h"
 #include "Calibration.h"
 #include "Led.h"  // pour readCalButton()
 #include "Config.h"
 #include "Controllers.h"
+#include "Inversion.h"
 
 #define AX_COUNT 8
 #define NEUTRAL_HALF_WINDOW 30
@@ -84,10 +86,13 @@ static String navBar(){
   return String(
     "<div class='bar'>"
       "<a class='btn' href='/defaut'>D\u00E9faut ESP32</a>"
-      "<a class='btn' href='/calib'>Calibration</a>"
+      "<a class='btn' href='/calib'>Calibration Joystick</a>"
+      "<a class='btn' href='/calev'>Calibration \u00E9lectrovannes</a>"
       "<a class='btn' href='/bridage'>Bridage axes</a>"
+      "<a class='btn' href='/invjoy'>Inversion Joystick</a>"
+      "<a class='btn' href='/invpad'>Inversion Manette</a>"
     "</div>"
-    "<style>.bar{display:flex;gap:8px;margin:10px 0 16px}"
+    "<style>.bar{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 16px}"
     ".btn{background:#334155;color:#e5e7eb;border:1px solid #1f2937;padding:8px 12px;border-radius:8px;text-decoration:none}"
     ".btn:hover{background:#475569}</style>"
   );
@@ -181,6 +186,8 @@ void bridageStartAP(){
   portalStart("ESP32-CONTROLE");
   Serial.println("[BRIDAGE] D\u00E9marrage AP + page /bridage");
   auto& server = portalServer();
+  inversionMountRoutes();
+  valveCalibMountRoutes();
   server.on("/bridage", HTTP_GET, [&](){ server.send(200,"text/html",htmlPage()); });
   server.on("/apply", HTTP_GET, [&](){
     if(!server.hasArg("min") || !server.hasArg("max")){ server.send(400,"text/plain","missing args"); return; }
@@ -249,9 +256,7 @@ void bridageHandleButtonSequence(bool /*unused*/, uint32_t /*shortPressMinMs*/, 
   bool now = readCalButton();  // <<< cohérent avec la calibration
 
   // Signal visuel: pendant l'appui court, LED verte fixe
-  if (isPadMode() && now) { setLED(true,false); }
-
-  if(!isPadMode()){ last=false; tPress=0; count=0; windowStart=0; return; }
+  if (now) { setLED(true,false); }
 
   if(now && !last){ tPress = millis(); if(count==0) windowStart = tPress; }
   if(!now && last){
