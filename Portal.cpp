@@ -20,8 +20,11 @@ static String homePage(){
     "</style></head><body>"
     "<h2>ESP32 Contr\u00F4le</h2>"
     "<a href='/defaut'>D\u00E9faut ESP32</a>"
-    "<a href='/calib'>Calibration</a>"
+    "<a href='/calib'>Calibration Joystick</a>"
+    "<a href='/calev'>Calibration \u00E9lectrovannes</a>"
     "<a href='/bridage'>Bridage axes</a>"
+    "<a href='/invjoy'>Inversion sens Joystick</a>"
+    "<a href='/invpad'>Inversion sens Manette</a>"
     "</body></html>"
   );
 }
