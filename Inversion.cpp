@@ -113,25 +113,26 @@ static void parseCSV8bool(const String& s,bool out[AX_COUNT]){
 
 void inversionMountRoutes(){
   auto& server = portalServer();
-    server.on("/invjoy", HTTP_GET, [](){ server.send(200,"text/html",pageHtml(true)); });
-    server.on("/invpad", HTTP_GET, [](){ server.send(200,"text/html",pageHtml(false)); });
-    server.on("/invapply", HTTP_GET, [](){
-      if(!server.hasArg("mode") || !server.hasArg("v")){ server.send(400,"text/plain","missing"); return; }
-      bool joy = (server.arg("mode") == "joy");
-      bool tmp[AX_COUNT];
-      parseCSV8bool(server.arg("v"), tmp);
-      if(joy){ for(int i=0;i<AX_COUNT;i++) invertJoy[i]=tmp[i]; }
-      else { for(int i=0;i<AX_COUNT;i++) invertPad[i]=tmp[i]; }
-      server.send(200,"text/plain","OK");
-    });
-    server.on("/invsave", HTTP_GET, [](){
-      if(!server.hasArg("mode") || !server.hasArg("v")){ server.send(400,"text/plain","missing"); return; }
-      bool joy = (server.arg("mode") == "joy");
-      bool tmp[AX_COUNT];
-      parseCSV8bool(server.arg("v"), tmp);
-      if(joy){ for(int i=0;i<AX_COUNT;i++) invertJoy[i]=tmp[i]; }
-      else { for(int i=0;i<AX_COUNT;i++) invertPad[i]=tmp[i]; }
-      inversionSaveToEEPROM();
-      server.send(200,"text/plain","OK");
-    });
-  }
+  server.on("/invjoy", HTTP_GET, [&](){ server.send(200,"text/html",pageHtml(true)); });
+  server.on("/invpad", HTTP_GET, [&](){ server.send(200,"text/html",pageHtml(false)); });
+  server.on("/invapply", HTTP_GET, [&](){
+    if(!server.hasArg("mode") || !server.hasArg("v")){ server.send(400,"text/plain","missing"); return; }
+    bool joy = (server.arg("mode") == "joy");
+    bool tmp[AX_COUNT];
+    parseCSV8bool(server.arg("v"), tmp);
+    if(joy){ for(int i=0;i<AX_COUNT;i++) invertJoy[i]=tmp[i]; }
+    else { for(int i=0;i<AX_COUNT;i++) invertPad[i]=tmp[i]; }
+    server.send(200,"text/plain","OK");
+  });
+  server.on("/invsave", HTTP_GET, [&](){
+    if(!server.hasArg("mode") || !server.hasArg("v")){ server.send(400,"text/plain","missing"); return; }
+    bool joy = (server.arg("mode") == "joy");
+    bool tmp[AX_COUNT];
+    parseCSV8bool(server.arg("v"), tmp);
+    if(joy){ for(int i=0;i<AX_COUNT;i++) invertJoy[i]=tmp[i]; }
+    else { for(int i=0;i<AX_COUNT;i++) invertPad[i]=tmp[i]; }
+    inversionSaveToEEPROM();
+    server.send(200,"text/plain","OK");
+  });
+}
+

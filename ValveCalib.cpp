@@ -96,22 +96,26 @@ static String htmlPage(){
 
 void valveCalibMountRoutes(){
   auto& server = portalServer();
-  server.on("/calev", HTTP_GET, [](){ server.send(200,"text/html",htmlPage()); });
-  server.on("/calev/start", HTTP_GET, [](){ neutralizeAllOutputs(); server.send(200,"text/plain","OK"); });
-  server.on("/calev/set", HTTP_GET, [](){
+
+  server.on("/calev", HTTP_GET, [&](){ server.send(200,"text/html",htmlPage()); });
+  server.on("/calev/start", HTTP_GET, [&](){ neutralizeAllOutputs(); server.send(200,"text/plain","OK"); });
+  server.on("/calev/set", HTTP_GET, [&](){
     if(!server.hasArg("v")){ server.send(400,"text/plain","missing"); return; }
     int v = clampInt(server.arg("v").toInt(),0,1023);
     applyAxisToPair(0,v);
     server.send(200,"text/plain","OK");
   });
-  server.on("/calev/record", HTTP_GET, [](){
+
+  server.on("/calev/record", HTTP_GET, [&](){
+
     if(!server.hasArg("phase") || !server.hasArg("val")){ server.send(400,"text/plain","missing"); return; }
     int ph = server.arg("phase").toInt();
     int v = clampInt(server.arg("val").toInt(),0,1023);
     if(ph==0) evNeutral=v; else if(ph==1) evMin=v; else if(ph==2) evMax=v;
     server.send(200,"text/plain","OK");
   });
-  server.on("/calev/save", HTTP_GET, [](){
+  server.on("/calev/save", HTTP_GET, [&](){
+
     neutralOffset = evNeutral;
     valveMin = evMin;
     valveMax = evMax;
