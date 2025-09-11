@@ -2,13 +2,14 @@
 #include <EEPROM.h>
 #include "Portal.h"
 #include "Bridage.h"
+#include "ValveCalib.h"
 #include "Calibration.h"
 #include "Led.h"  // pour readCalButton()
 #include "Config.h"
 #include "Controllers.h"
+#include "Inversion.h"
 
 #define AX_COUNT 8
-#define NEUTRAL_HALF_WINDOW 30
 #define BRIDAGE_BASE_SPAN 513
 
 #define BRDG_EE_MAGIC      0xB1D6
@@ -22,12 +23,12 @@ int padMapMin[AX_COUNT]     = {255,255,255,255,255,255,255,255};
 int padMapMax[AX_COUNT]     = {768,768,768,768,768,768,768,768};
 int padNeutral[AX_COUNT]    = {512,512,512,512,512,512,512,512};
 int padNeutralMin[AX_COUNT] = {
-  512-NEUTRAL_HALF_WINDOW,512-NEUTRAL_HALF_WINDOW,512-NEUTRAL_HALF_WINDOW,512-NEUTRAL_HALF_WINDOW,
-  512-NEUTRAL_HALF_WINDOW,512-NEUTRAL_HALF_WINDOW,512-NEUTRAL_HALF_WINDOW,512-NEUTRAL_HALF_WINDOW
+  512-30,512-30,512-30,512-30,
+  512-30,512-30,512-30,512-30
 };
 int padNeutralMax[AX_COUNT] = {
-  512+NEUTRAL_HALF_WINDOW,512+NEUTRAL_HALF_WINDOW,512+NEUTRAL_HALF_WINDOW,512+NEUTRAL_HALF_WINDOW,
-  512+NEUTRAL_HALF_WINDOW,512+NEUTRAL_HALF_WINDOW,512+NEUTRAL_HALF_WINDOW,512+NEUTRAL_HALF_WINDOW
+  512+30,512+30,512+30,512+30,
+  512+30,512+30,512+30,512+30
 };
 
 static inline int clampInt(int v,int lo,int hi){ if(v<lo) return lo; if(v>hi) return hi; return v; }
@@ -36,10 +37,10 @@ static inline bool isPadMode(){ return digitalRead(MODE_SEL_PIN)==HIGH; } // HIG
 void bridageRecalcNeutralForAxis(int i){
   int n=(padMapMin[i]+padMapMax[i])/2;
   padNeutral[i]=n;
-  padNeutralMin[i]=n-NEUTRAL_HALF_WINDOW;
-  padNeutralMax[i]=n+NEUTRAL_HALF_WINDOW;
+  padNeutralMin[i]=n-padNeutralWindow;
+  padNeutralMax[i]=n+padNeutralWindow;
 }
-static void bridageRecalcAll(){ for(int i=0;i<AX_COUNT;i++) bridageRecalcNeutralForAxis(i); }
+void bridageRecalcAll(){ for(int i=0;i<AX_COUNT;i++) bridageRecalcNeutralForAxis(i); }
 
 void bridageSaveToEEPROM(){
 #if defined(ARDUINO_ARCH_ESP32)
@@ -84,10 +85,13 @@ static String navBar(){
   return String(
     "<div class='bar'>"
       "<a class='btn' href='/defaut'>D\u00E9faut ESP32</a>"
-      "<a class='btn' href='/calib'>Calibration</a>"
+      "<a class='btn' href='/calib'>Calibration Joystick</a>"
+      "<a class='btn' href='/calev'>Calibration \u00E9lectrovannes</a>"
       "<a class='btn' href='/bridage'>Bridage axes</a>"
+      "<a class='btn' href='/invjoy'>Inversion Joystick</a>"
+      "<a class='btn' href='/invpad'>Inversion Manette</a>"
     "</div>"
-    "<style>.bar{display:flex;gap:8px;margin:10px 0 16px}"
+    "<style>.bar{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 16px}"
     ".btn{background:#334155;color:#e5e7eb;border:1px solid #1f2937;padding:8px 12px;border-radius:8px;text-decoration:none}"
     ".btn:hover{background:#475569}</style>"
   );
@@ -131,6 +135,8 @@ static String htmlPage(){
   html += "<span id=\"msg\" class=\"muted\"></span>";
   html += "</div>";
   html += "<div style='margin:10px 0'>D\u00E9calage neutre : <select id=\"off\"></select> <button id=\"saveOff\">Sauvegarde EEPROM</button></div>";
+  html += "<div style='margin:10px 0'>Zone neutre joystick : <select id=\"znj\"></select> <button id=\"saveZnj\">Sauvegarde EEPROM</button></div>";
+  html += "<div style='margin:10px 0'>Zone neutre manette : <select id=\"znp\"></select> <button id=\"saveZnp\">Sauvegarde EEPROM</button></div>";
 
   html += "<table id=\"t\"><thead><tr>";
   html += "<th>Axe</th><th>Valeur mini</th><th>Valeur maxi</th><th>Plage neutre</th><th>Conseil</th><th>Valeurs enregistrées</th><th>Manette</th>";
@@ -141,16 +147,20 @@ static String htmlPage(){
   html += "var Smin=[" + sMin + "];";
   html += "var Smax=[" + sMax + "];";
   html += "var OFFSET=" + String(neutralOffset) + ";";
+  html += "var ZNJ=" + String(joyNeutralWindow) + ";";
+  html += "var ZNP=" + String(padNeutralWindow) + ";";
   html += "var ACTMIN=Smin.slice(), ACTMAX=Smax.slice();";
   html += "var PAD=[0,0,0,0,0,0,0,0];";
   html += "var touchedMin=[false,false,false,false,false,false,false,false];";
   html += "var touchedMax=[false,false,false,false,false,false,false,false];";
   html += "var lastChanged=['','','','','','','',''];";
   html += "function buildOffset(){ var o=''; for(var v=0; v<=1023; v++){ o+='<option value=\"'+v+'\"'+(v===OFFSET?' selected':'')+'>'+v+'</option>'; } document.getElementById('off').innerHTML=o; }";
+  html += "function buildZones(){ var j='',p=''; for(var v=5; v<=100; v+=5){ j+='<option value=\"'+v+'\"'+(v===ZNJ?' selected':'')+'>'+v+'</option>'; p+='<option value=\"'+v+'\"'+(v===ZNP?' selected':'')+'>'+v+'</option>'; } document.getElementById('znj').innerHTML=j; document.getElementById('znp').innerHTML=p; }";
   html += "function applyOffset(save){ var v=document.getElementById('off').value; var u='/offset?val='+v; if(save) u+='&save=1'; fetch(u,{cache:'no-store'}).then(function(){ if(save) location.reload(); }); }";
+  html += "function applyZone(mode,save){ var id=mode==='joy'?\'znj\':\'znp\'; var v=document.getElementById(id).value; var u='/zone?mode='+mode+'&val='+v; if(save) u+='&save=1'; fetch(u,{cache:'no-store'}).then(function(){ if(mode==='joy'){ ZNJ=parseInt(v); } else { ZNP=parseInt(v); for(var i=0;i<8;i++) recalcRow(i); } if(save) location.reload(); }); }";
   html += "function clamp(v,lo,hi){ return Math.min(hi, Math.max(lo, v)); }";
   html += "function mkSelect(id,val){ var o=''; for(var v=0; v<=1023; v++){ o+='<option value=\"'+v+'\"'+(v===val?' selected':'')+'>'+v+'</option>'; } return '<select id=\"'+id+'\">'+o+'</select>'; }";
-  html += "function neutralText(mn,mx){ var n=Math.round((mn+mx)/2); var nmin=clamp(n-30,0,1023); var nmax=clamp(n+30,0,1023); return nmin+' / '+nmax; }";
+  html += "function neutralText(mn,mx){ var n=Math.round((mn+mx)/2); var nmin=clamp(n-ZNP,0,1023); var nmax=clamp(n+ZNP,0,1023); return nmin+' / '+nmax; }";
   html += "function recommendedText(i,mn,mx){ var span=mx-mn; var changedMin=touchedMin[i] && !touchedMax[i]; var changedMax=touchedMax[i] && !touchedMin[i]; if(changedMin){ var rec=mn+513; if(rec>1023) rec=1023; return 'conseil: maxi = '+rec; } if(changedMax){ var rec=mx-513; if(rec<0) rec=0; return 'conseil: mini = '+rec; } if(touchedMin[i] && touchedMax[i]){ if(span<513) return '<span class=\\\"bad\\\">axe bridé</span>'; } return '<span class=\\\"ok\\\">mini = '+mn+' &middot; maxi = '+mx+'</span>'; } function setActCell(i){ var el=document.getElementById('act_'+i); el.textContent=ACTMIN[i]+' / '+ACTMAX[i]; } function setPadCell(i){ var el=document.getElementById('pad_'+i); el.textContent=PAD[i]; }";
   html += "function recalcRow(i){ var mn=parseInt(document.getElementById('min_'+i).value,10); var mx=parseInt(document.getElementById('max_'+i).value,10); if(isNaN(mn))mn=0; if(isNaN(mx))mx=0; document.getElementById('neutral_'+i).textContent=neutralText(mn,mx); document.getElementById('rec_'+i).innerHTML=recommendedText(i,mn,mx); }";
   html += "function draw(){ var t=''; for(var i=0;i<8;i++){ t+='<tr>'+'<td>'+AX[i]+'</td>'+'<td>'+mkSelect('min_'+i,Smin[i])+'</td>'+'<td>'+mkSelect('max_'+i,Smax[i])+'</td>'+'<td class=\"muted\" id=\"neutral_'+i+'\">—</td>'+'<td class=\"muted\" id=\"rec_'+i+'\">—</td>'+'<td class=\"muted\" id=\"act_'+i+'\">—</td>'+'<td class=\"muted\" id=\"pad_'+i+'\">—</td>'+'</tr>'; } document.getElementById('tb').innerHTML=t; for(var i=0;i<8;i++){ (function(ii){ var mnSel=document.getElementById('min_'+ii); var mxSel=document.getElementById('max_'+ii); mnSel.addEventListener('change',function(){touchedMin[ii]=true; lastChanged[ii]='min'; recalcRow(ii);}); mxSel.addEventListener('change',function(){touchedMax[ii]=true; lastChanged[ii]='max'; recalcRow(ii);}); recalcRow(ii); setActCell(ii); setPadCell(ii); })(i); } document.getElementById('btnSend').onclick=sendValues; document.getElementById('btnDefaults').onclick=resetDefaults; document.getElementById('btnFinish').onclick=finishBridage; }";
@@ -162,7 +172,10 @@ static String htmlPage(){
   html += "function finishBridage(){ var msg=document.getElementById('msg'); fetch('/finish',{cache:'no-store'}).then(function(){ msg.textContent='Bridage termin\u00E9.'; setTimeout(function(){ document.body.innerHTML='<div class=\"wrap\"><h3>Bridage termin\u00E9</h3><p>Vous pouvez fermer cette page.</p></div>'; },400); }).catch(function(){ msg.textContent='Erreur'; }); }";
 
   html += "draw(); refreshPads();";
-  html += "buildOffset(); document.getElementById('off').addEventListener('change',function(){applyOffset(false);}); document.getElementById('saveOff').addEventListener('click',function(){applyOffset(true);});";
+  html += "buildOffset(); buildZones();";
+  html += "document.getElementById('off').addEventListener('change',function(){applyOffset(false);}); document.getElementById('saveOff').addEventListener('click',function(){applyOffset(true);});";
+  html += "document.getElementById('znj').addEventListener('change',function(){applyZone('joy',false);}); document.getElementById('saveZnj').addEventListener('click',function(){applyZone('joy',true);});";
+  html += "document.getElementById('znp').addEventListener('change',function(){applyZone('pad',false);}); document.getElementById('saveZnp').addEventListener('click',function(){applyZone('pad',true);});";
   html += "</script></div></body></html>";
   return html;
 }
@@ -181,6 +194,8 @@ void bridageStartAP(){
   portalStart("ESP32-CONTROLE");
   Serial.println("[BRIDAGE] D\u00E9marrage AP + page /bridage");
   auto& server = portalServer();
+  inversionMountRoutes();
+  valveCalibMountRoutes();
   server.on("/bridage", HTTP_GET, [&](){ server.send(200,"text/html",htmlPage()); });
   server.on("/apply", HTTP_GET, [&](){
     if(!server.hasArg("min") || !server.hasArg("max")){ server.send(400,"text/plain","missing args"); return; }
@@ -220,6 +235,21 @@ void bridageStartAP(){
     server.send(200,"text/plain","OK");
   });
 
+  server.on("/zone", HTTP_GET, [&](){
+    if(!server.hasArg("mode") || !server.hasArg("val")){ server.send(400,"text/plain","missing"); return; }
+    int v = clampInt(server.arg("val").toInt(),5,100);
+    String m = server.arg("mode");
+    if(m=="joy"){
+      joyNeutralWindow = v;
+      updateNeutralWindow();
+    } else if(m=="pad"){
+      padNeutralWindow = v;
+      bridageRecalcAll();
+    } else { server.send(400,"text/plain","bad mode"); return; }
+    if(server.hasArg("save")) saveNeutralOffset();
+    server.send(200,"text/plain","OK");
+  });
+
   server.on("/pad", HTTP_GET, [&](){
     int vals[AX_COUNT];
     getPadValues(vals);
@@ -249,9 +279,7 @@ void bridageHandleButtonSequence(bool /*unused*/, uint32_t /*shortPressMinMs*/, 
   bool now = readCalButton();  // <<< cohérent avec la calibration
 
   // Signal visuel: pendant l'appui court, LED verte fixe
-  if (isPadMode() && now) { setLED(true,false); }
-
-  if(!isPadMode()){ last=false; tPress=0; count=0; windowStart=0; return; }
+  if (now) { setLED(true,false); }
 
   if(now && !last){ tPress = millis(); if(count==0) windowStart = tPress; }
   if(!now && last){
