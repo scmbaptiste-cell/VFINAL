@@ -22,13 +22,16 @@ int neutralOffset=512;
 int joyNeutralMin=0, joyNeutralMax=0;
 int valveMin=255, valveMax=768;
 
-static const int NEUTRAL_HALF_WINDOW = 30;
+int joyNeutralWindow=30;
+int padNeutralWindow=30;
 static int lastOffset = 512;
 #define EE_NEUTRAL_OFFSET_ADDR 200
+#define EE_JOY_NEUTRAL_ADDR 202
+#define EE_PAD_NEUTRAL_ADDR 204
 
 void updateNeutralWindow(){
-  joyNeutralMin = neutralOffset - NEUTRAL_HALF_WINDOW;
-  joyNeutralMax = neutralOffset + NEUTRAL_HALF_WINDOW;
+  joyNeutralMin = neutralOffset - joyNeutralWindow;
+  joyNeutralMax = neutralOffset + joyNeutralWindow;
 
   int delta = neutralOffset - lastOffset;
   if(delta != 0){
@@ -47,11 +50,19 @@ void loadNeutralOffset(){
 #if defined(ARDUINO_ARCH_ESP32)
   EEPROM.begin(512);
 #endif
-  uint16_t v=512;
+  uint16_t v=512, j=30, p=30;
   EEPROM.get(EE_NEUTRAL_OFFSET_ADDR, v);
+  EEPROM.get(EE_JOY_NEUTRAL_ADDR, j);
+  EEPROM.get(EE_PAD_NEUTRAL_ADDR, p);
   if(v>1023) v=512;
+  if(j<5 || j>100) j=30;
+  if(p<5 || p>100) p=30;
   neutralOffset = (int)v;
+  joyNeutralWindow = (int)j;
+  padNeutralWindow = (int)p;
   lastOffset = neutralOffset;
+  updateNeutralWindow();
+  bridageRecalcAll();
 }
 
 void saveNeutralOffset(){
@@ -59,7 +70,11 @@ void saveNeutralOffset(){
   EEPROM.begin(512);
 #endif
   uint16_t v = (uint16_t)neutralOffset;
+  uint16_t j = (uint16_t)joyNeutralWindow;
+  uint16_t p = (uint16_t)padNeutralWindow;
   EEPROM.put(EE_NEUTRAL_OFFSET_ADDR, v);
+  EEPROM.put(EE_JOY_NEUTRAL_ADDR, j);
+  EEPROM.put(EE_PAD_NEUTRAL_ADDR, p);
 #if defined(ARDUINO_ARCH_ESP32)
   EEPROM.commit();
 #endif
