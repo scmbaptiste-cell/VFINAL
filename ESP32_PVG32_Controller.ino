@@ -7,6 +7,8 @@
 #include "Controllers.h"
 #include "Calibration.h"
 #include "Bridage.h"
+#include "Inversion.h"
+#include "ValveCalib.h"
 #include "Faults.h"
 #include "FaultsPortal.h"
 #include "Portal.h"
@@ -30,8 +32,8 @@ void setup() {
   faultsBootCheck();       // Auto-test I2C (N2/N3/N4/N5 si besoin)
   calLoadOrDefault();      // Calibration joysticks (EEPROM)
   bridageLoadOrDefault();  // Bridage manette (EEPROM)
-  loadNeutralOffset();
-  updateNeutralWindow();
+  inversionLoadOrDefault(); // Inversions axes (EEPROM)
+  valveCalibLoad();        // Neutre/min/max électrovannes (EEPROM)
   controllersSetup();      // Bluepad32 (callbacks connect/disconnect)
 
   // Mode initial + neutralisation

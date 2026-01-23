@@ -18,6 +18,8 @@
 extern int joyNeutralMin; // 482
 extern int joyNeutralMax; // 542
 extern int neutralOffset; // 512
+extern int joyNeutralWindow; // 30
+extern int padNeutralWindow; // 30
 void updateNeutralWindow();
 void loadNeutralOffset();
 void saveNeutralOffset();

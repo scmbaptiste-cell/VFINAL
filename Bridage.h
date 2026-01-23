@@ -11,6 +11,7 @@ extern int padMapMax[AX_COUNT];
 extern int padNeutral[AX_COUNT];
 extern int padNeutralMin[AX_COUNT];
 extern int padNeutralMax[AX_COUNT];
+extern int padNeutralWindow;
 
 bool isBridageActive();
 void bridageStartAP();
@@ -19,6 +20,7 @@ void bridageHandlePortal();
 void bridageHandleButtonSequence(bool btnPressed, uint32_t shortPressMinMs=50, uint32_t longPressMs=5000);
 
 void bridageRecalcNeutralForAxis(int i);
+void bridageRecalcAll();
 void bridageClampAndRecommend(int &minV, int &maxV, int changed);
 void bridageLoadOrDefault();
 void bridageSaveToEEPROM();

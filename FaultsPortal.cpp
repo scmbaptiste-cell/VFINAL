@@ -12,10 +12,13 @@ static String navBar(){
   return String(
     "<div class='bar'>"
       "<a class='btn' href='/defaut'>D\u00E9faut ESP32</a>"
-      "<a class='btn' href='/calib'>Calibration</a>"
+      "<a class='btn' href='/calib'>Calibration Joystick</a>"
+      "<a class='btn' href='/calev'>Calibration \u00E9lectrovannes</a>"
       "<a class='btn' href='/bridage'>Bridage axes</a>"
+      "<a class='btn' href='/invjoy'>Inversion Joystick</a>"
+      "<a class='btn' href='/invpad'>Inversion Manette</a>"
     "</div>"
-    "<style>.bar{display:flex;gap:8px;margin:10px 0 16px}"
+    "<style>.bar{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 16px}"
     ".btn{background:#334155;color:#e5e7eb;border:1px solid #1f2937;padding:8px 12px;border-radius:8px;text-decoration:none}"
     ".btn:hover{background:#475569}</style>"
   );
