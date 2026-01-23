@@ -152,6 +152,10 @@ static inline void setTOR(uint8_t ch,bool on){
   else   pca.setPWM(ch, 0, 4096);  // full OFF
 }
 
+void setPairTOR(uint8_t pwmCh,bool on){
+  if(pwmCh < 8) setTOR(PWM_TO_TOR[pwmCh], on);
+}
+
 
 
 void applyAxisToPair(uint8_t pwmCh, int val){

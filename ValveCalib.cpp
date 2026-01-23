@@ -98,11 +98,19 @@ static String htmlPage(){
 void valveCalibMountRoutes(){
   auto& server = portalServer();
   server.on("/calev", HTTP_GET, [&](){ server.send(200,"text/html",htmlPage()); });
-  server.on("/calev/start", HTTP_GET, [&](){ neutralizeAllOutputs(); server.send(200,"text/plain","OK"); });
+ 
+  server.on("/calev/start", HTTP_GET, [&](){
+    neutralizeAllOutputs();
+    setPairTOR(0,true);
+    server.send(200,"text/plain","OK");
+  });
+
   server.on("/calev/set", HTTP_GET, [&](){
     if(!server.hasArg("v")){ server.send(400,"text/plain","missing"); return; }
     int v = clampInt(server.arg("v").toInt(),0,1023);
     applyAxisToPair(0,v);
+    setPairTOR(0,true);
+
     server.send(200,"text/plain","OK");
   });
   server.on("/calev/record", HTTP_GET, [&](){
@@ -118,6 +126,9 @@ void valveCalibMountRoutes(){
     valveMax = evMax;
     updateNeutralWindow();
     valveCalibSaveToEEPROM();
+
+    neutralizeAllOutputs();
+
     server.send(200,"text/plain","OK");
   });
 }

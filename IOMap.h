@@ -23,6 +23,7 @@ ADSRaw readADSRaw();
 Axes8  mapADSAll(const ADSRaw& r);
 int    mapADSWithCal(int16_t raw,const CalAxis& c);
 void   applyAxisToPair(uint8_t pwmCh,int val);
+void   setPairTOR(uint8_t pwmCh,bool on);
 void   neutralizeAllOutputs();
 bool   waitNeutralAtBootWithBlink(uint32_t to_ms);
 void   processADS();

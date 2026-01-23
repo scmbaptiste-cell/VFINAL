@@ -90,6 +90,7 @@ static bool canSoftOverrideToPad(){
   if(!pcaOK) return false;
   if(faultCode==FC_NONE) return true;
   if(faultCode==FC_ADS_DROIT || faultCode==FC_ADS_GAUCHE) return true;
+  if(faultCode==FC_NEUTRAL_TO) return true;
   if(faultCode==FC_I2C_GENERAL && !missPCA && (missADSg || missADSd)) return true;
   return false;
 }
