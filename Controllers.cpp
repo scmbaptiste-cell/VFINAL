@@ -98,6 +98,7 @@ static bool canSoftOverrideToPad(){
   if(!pcaOK) return false;
   if(faultCode==FC_NONE) return true;
   return allowPadDespiteFault();
+
 }
 
 void processR1L1Override(){
