@@ -38,11 +38,19 @@ void onDisconnectedController(ControllerPtr ctl){
 void controllersSetup(){ BP32.setup(&onConnectedController,&onDisconnectedController); BP32.forgetBluetoothKeys(); }
 void controllersUpdate(){ BP32.update(); }
 
+static bool allowPadDespiteFault(){
+  if(!pcaOK) return false;
+  if(faultCode==FC_ADS_DROIT || faultCode==FC_ADS_GAUCHE) return true;
+  if(faultCode==FC_I2C_GENERAL) return true;
+  if(faultCode==FC_NEUTRAL_TO) return true;
+  return false;
+}
+
 void refreshControllersColor(){
   for(int i=0;i<BP32_MAX_GAMEPADS;i++){
     auto ctl=myControllers[i];
     if(!ctl||!ctl->isConnected()||ctrlLed[i].mode!=LEDMODE_NORMAL) continue;
-    if(faultCode!=FC_NONE) { setControllerColor(ctl,255,0,0); continue; }
+    if(faultCode!=FC_NONE && !allowPadDespiteFault()) { setControllerColor(ctl,255,0,0); continue; }
     if(safetyReady) setControllerColor(ctl,0,255,0); else setControllerColor(ctl,0,0,255);
   }
 }
@@ -89,10 +97,8 @@ bool controllerAxesNeutral(ControllerPtr ctl){
 static bool canSoftOverrideToPad(){
   if(!pcaOK) return false;
   if(faultCode==FC_NONE) return true;
-  if(faultCode==FC_ADS_DROIT || faultCode==FC_ADS_GAUCHE) return true;
-  if(faultCode==FC_NEUTRAL_TO) return true;
-  if(faultCode==FC_I2C_GENERAL && !missPCA && (missADSg || missADSd)) return true;
-  return false;
+  return allowPadDespiteFault();
+
 }
 
 void processR1L1Override(){
@@ -235,7 +241,7 @@ void updateStatusLEDs(){
   // ⬇️ Respecte la calibration/les clignotements en cours
   if (calibMode || isBlinking()) { serviceBlink(); return; }
 
-  if( faultCode != FC_NONE ){ serviceFaultDisplay(); return; }
+  if( faultCode != FC_NONE && !allowPadDespiteFault() ){ serviceFaultDisplay(); return; }
 
   bool wired = isEffectiveWiredMode();
   bool connected = isAnyControllerConnected();

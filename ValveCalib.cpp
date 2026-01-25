@@ -98,7 +98,7 @@ static String htmlPage(){
 void valveCalibMountRoutes(){
   auto& server = portalServer();
   server.on("/calev", HTTP_GET, [&](){ server.send(200,"text/html",htmlPage()); });
- 
+
   server.on("/calev/start", HTTP_GET, [&](){
     neutralizeAllOutputs();
     setPairTOR(0,true);
@@ -126,7 +126,6 @@ void valveCalibMountRoutes(){
     valveMax = evMax;
     updateNeutralWindow();
     valveCalibSaveToEEPROM();
-
     neutralizeAllOutputs();
 
     server.send(200,"text/plain","OK");
